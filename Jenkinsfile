@@ -42,6 +42,7 @@ pipeline {
         stage("build image") {
             steps {
                 script {
+                    // todo: setup dynamic variable for image name
                     buildImage 'danielleh/my-repo:maven-app-3.0'
                     dockerLogin()
                     dockerPush 'danielleh/my-repo:maven-app-3.0'
