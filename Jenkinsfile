@@ -55,7 +55,7 @@ pipeline {
                         sh 'git config --global user.name "jenkins"'
 
                         def encodedPassword = URLEncoder.encode("$PASSWORD",'UTF-8')
-                        sh "git remote set-url origin https://${USERNAME}:${encodedPassword}@github.com/daniellehopedev/java-maven-app.git"
+                        sh "git remote set-url origin https://${encodedPassword}@github.com/daniellehopedev/java-maven-app.git"
                         sh 'git add .'
                         sh 'git commit -m "ci: version bump"'
                         sh 'git push origin HEAD:feature/jenkins-jobs-webhook'
