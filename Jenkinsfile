@@ -49,18 +49,6 @@ pipeline {
         stage('commit version update') {
             steps {
                 script {
-//                     withCredentials([usernamePassword(credentialsId: 'github-token-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
-//                         //git config here for the first time run
-//                         sh 'git config --global user.email "jenkins@example.com"'
-//                         sh 'git config --global user.name "jenkins"'
-//
-//                         def encodedPassword = URLEncoder.encode("$PASSWORD",'UTF-8')
-//                         sh "git remote set-url origin git@github.com/daniellehopedev/java-maven-app.git"
-//                         sh 'git add .'
-//                         sh 'git commit -m "ci: version bump"'
-//                         sh 'git push origin HEAD:feature/jenkins-jobs-webhook'
-//                     }
-
                     sshagent(['github-ssh-credentials']) {
                         sh "git remote set-url origin git@github.com:daniellehopedev/java-maven-app.git"
                         sh 'git add .'
