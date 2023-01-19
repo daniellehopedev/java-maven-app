@@ -1,40 +1,64 @@
 #! /usr/bin/env groovy
 
-def gv
-
 pipeline {
     agent any
     tools {
         maven 'maven'
     }
     stages {
-        stage("init") {
+        stage('increment version') {
             steps {
                 script {
-                    gv = load "script.groovy"
+                    echo 'incrementing app version...'
+                    sh 'mvn build-helper:parse-version versions:set \
+                        -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} versions:commit'
+                    def matcher = readFile('pom.xml') =~ '<version>(.+)</version>'
+                    def version = matcher[0][1]
+                    env.IMAGE_NAME = "$version-$BUILD_NUMBER"
                 }
             }
         }
-        stage("build jar") {
+        stage('build app') {
             steps {
                 script {
-                    gv.buildJar()
+                    echo 'building the application...'
+                    sh 'mvn clean package'
                 }
             }
         }
-        stage("build image") {
+        stage('build image') {
             steps {
                 script {
-                    //echo "building image"
-                    gv.buildImage()
+                    echo 'building the docker image...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                        sh "docker build -t danielleh/my-repo:${IMAGE_NAME} ."
+                        sh "echo $PASSWORD | docker login -u $USERNAME --password-stdin"
+                        sh "docker push danielleh/my-repo:${IMAGE_NAME}"
+                    }
                 }
             }
         }
-        stage("deploy") {
+        stage('deploy') {
             steps {
                 script {
-                    //echo "deploying"
-                    gv.deployApp()
+                    // to be added later
+                    echo 'deploying docker image to EC2...'
+                }
+            }
+        }
+        stage('commit version update') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                        //git config here for the first time run
+                        sh 'git config --global user.email "jenkins@example.com"'
+                        sh 'git config --global user.name "jenkins"'
+
+                        sh "git remote set-url origin https://${USERNAME}:${PASSWORD}@github.com:daniellehopedev/java-maven-app.git"
+                        sh 'git add .'
+                        sh 'git commit -m "ci: version bump"'
+                        sh 'git push origin HEAD:feature/jenkins-jobs-webhook'
+                    }
                 }
             }
         }
