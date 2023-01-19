@@ -62,7 +62,7 @@ pipeline {
 //                     }
 
                     sshagent(['github-ssh-credentials']) {
-                        sh "git remote set-url origin git@github.com/daniellehopedev/java-maven-app.git"
+                        sh "git remote set-url origin git@github.com:daniellehopedev/java-maven-app.git"
                         sh 'git add .'
                         sh 'git commit -m "ci: version bump"'
                         sh 'git push origin HEAD:feature/jenkins-jobs-webhook'
