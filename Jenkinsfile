@@ -1,36 +1,54 @@
-def gv
+#! /usr/bin/env groovy
+
+library identifier: 'jenkins-shared-library@main', retriever: modernSCM(
+    [
+        $class: 'GitSCMSource',
+        remote: 'git@github.com:daniellehopedev/jenkins-shared-library.git',
+        credentialId: 'github-ssh-credentials'
+    ]
+)
 
 pipeline {
     agent any
+
+    tools {
+        maven 'maven'
+    }
+
+    environment {
+        IMAGE_NAME = 'danielleh/my-repo:maven-app-4.0'
+    }
+
     stages {
-        stage("init") {
+        stage('build app') {
             steps {
                 script {
-                    gv = load "script.groovy"
+                    echo 'building application jar...'
+                    buildJar()
                 }
             }
         }
-        stage("build jar") {
+
+        stage('build image') {
             steps {
                 script {
-                    echo "building jar"
-                    //gv.buildJar()
+                    echo 'building docker image...'
+                    buildImage(env.IMAGE_NAME)
+                    dockerLogin()
+                    dockerPush(env.IMAGE_NAME)
                 }
             }
         }
-        stage("build image") {
+
+        stage('deploy') {
             steps {
                 script {
-                    echo "building image"
-                    //gv.buildImage()
-                }
-            }
-        }
-        stage("deploy") {
-            steps {
-                script {
-                    echo "deploying"
-                    //gv.deployApp()
+                    echo 'deploying docker image to EC2...'
+                    def dockerCmd = "docker run -d -p 8080:8080 ${IMAGE_NAME}"
+                    sshagent(['ec2-ssh-credentials']) {
+                        // -o StringHostKeyChecking=no, suppresses popup when connecting to the ec2 server
+                        sh "ssh -o StringHostKeyChecking=no ec2-user@18.191.57.52 ${dockerCmd}"
+                    }
                 }
             }
         }
