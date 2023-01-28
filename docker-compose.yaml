@@ -8,5 +8,5 @@ services:
     image: postgres:13
     ports:
       - 5432:5432
-    environments:
+    environment:
       - POSTGRES_PASSWORD=my-pwd
