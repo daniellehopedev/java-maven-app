@@ -16,7 +16,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = 'danielleh/my-repo:maven-app-4.0'
+        IMAGE_NAME = 'danielleh/my-repo:maven-app-5.0'
     }
 
     stages {
@@ -44,10 +44,21 @@ pipeline {
             steps {
                 script {
                     echo 'deploying docker image to EC2...'
-                    def dockerCmd = "docker run -d -p 8080:8080 ${IMAGE_NAME}"
+                    // using docker
+                    // def dockerCmd = "docker run -d -p 8080:8080 ${IMAGE_NAME}"
+                    // using docker-compose
+                    def ec2Instance = "ec2-user@18.118.211.183"
+                    def shellCmd = "bash ./server-cmds.sh ${IMAGE_NAME}"
                     sshagent(['ec2-ssh-credentials']) {
+                        // copying shell script
+                        sh "scp -o StrictHostKeyChecking=no server-cmds.sh ${ec2Instance}:/home/ec2-user"
+                        // copying docker-compose file
+                        sh "scp -o StrictHostKeyChecking=no docker-compose.yaml ${ec2Instance}:/home/ec2-user"
                         // -o StrictHostKeyChecking=no, suppresses popup when connecting to the ec2 server
-                        sh "ssh -o StrictHostKeyChecking=no ec2-user@18.191.57.52 ${dockerCmd}"
+                        // using docker
+                        //sh "ssh -o StrictHostKeyChecking=no ${ec2Instance} ${dockerCmd}"
+                        // using docker-compose
+                        sh "ssh -o StrictHostKeyChecking=no ${ec2Instance} ${shellCmd}"
                     }
                 }
             }
