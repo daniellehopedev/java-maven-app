@@ -15,11 +15,28 @@ pipeline {
         maven 'maven'
     }
 
-    environment {
-        IMAGE_NAME = 'danielleh/my-repo:maven-app-5.0'
-    }
+// this will be replaced by the 'increment version' stage
+//     environment {
+//         IMAGE_NAME = 'danielleh/my-repo:maven-app-5.0'
+//     }
 
     stages {
+        stage('increment version') {
+            steps {
+                script {
+                    echo 'incrementing app version...'
+                    // maven command that increments the version and updated the pom file
+                    sh 'mvn build-helper:parse-version versions:set \
+                        -DnewVersion=\\\${parsedVersion.majorVersion}.\\\${parsedVersion.minorVersion}.\\\${parsedVersion.nextIncrementalVersion} versions:commit'
+                    // read the version from the pom file and set it as the IMAGE_NAME
+                    def matcher = readFile('pom.xml') =~ '<version>(.+)</version>'
+                    def version = matcher[0][1]
+                    // BUILD_NUMBER is a value from the Jenkins pipeline builds
+                    env.IMAGE_NAME = "$version-$BUILD_NUMBER"
+                }
+            }
+        }
+
         stage('build app') {
             steps {
                 script {
@@ -47,7 +64,7 @@ pipeline {
                     // using docker
                     // def dockerCmd = "docker run -d -p 8080:8080 ${IMAGE_NAME}"
                     // using docker-compose
-                    def ec2Instance = "ec2-user@18.118.211.183"
+                    def ec2Instance = "ec2-user@3.139.62.81"
                     def shellCmd = "bash ./server-cmds.sh ${IMAGE_NAME}"
                     sshagent(['ec2-ssh-credentials']) {
                         // copying shell script
@@ -59,6 +76,21 @@ pipeline {
                         //sh "ssh -o StrictHostKeyChecking=no ${ec2Instance} ${dockerCmd}"
                         // using docker-compose
                         sh "ssh -o StrictHostKeyChecking=no ${ec2Instance} ${shellCmd}"
+                    }
+                }
+            }
+        }
+
+        stage('commit version update') {
+            steps {
+                script {
+                    sshagent(['github-ssh-credentials']) {
+                        // on the jenkins server, setting the remote url for the repository to commit and push to
+                        sh "git remote set-url origin git@github.com:daniellehopedev/java-maven-app.git"
+                        sh 'git add .'
+                        // the commit and push will be as the jenkins user
+                        sh 'git commit -m "ci: version bump"'
+                        sh 'git push origin HEAD:feature/jenkinsfile-ec2-docker'
                     }
                 }
             }
