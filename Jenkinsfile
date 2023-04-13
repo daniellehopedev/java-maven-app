@@ -1,36 +1,31 @@
-def gv
+#! /usr/bin/env groovy
 
 pipeline {
     agent any
     stages {
-        stage("init") {
+        stage('build app') {
             steps {
                 script {
-                    gv = load "script.groovy"
+                    echo 'building the application...'
                 }
             }
         }
-        stage("build jar") {
+        stage('build image') {
             steps {
                 script {
-                    echo "building jar"
-                    //gv.buildJar()
+                    echo 'building the docker image...'
                 }
             }
         }
-        stage("build image") {
-            steps {
-                script {
-                    echo "building image"
-                    //gv.buildImage()
-                }
+        stage('deploy') {
+            environment {
+                AWS_ACCESS_KEY_ID = credentials('jenkins_aws_access_key_id')
+                AWS_SECRET_ACCESS_KEY = credentials('jenkins_aws_secret_access_key')
             }
-        }
-        stage("deploy") {
             steps {
                 script {
-                    echo "deploying"
-                    //gv.deployApp()
+                    echo 'deploying docker image...'
+                    sh 'kubectl create deployment nginx-deployment --image=nginx'
                 }
             }
         }
