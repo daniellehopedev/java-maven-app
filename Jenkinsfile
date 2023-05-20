@@ -1,36 +1,38 @@
-def gv
-
 pipeline {
     agent any
+    environment {
+        ANSIBLE_SERVER = "<ansible-server-ip>"
+    }
     stages {
-        stage("init") {
+        stage("copy files to ansible server") {
             steps {
                 script {
-                    gv = load "script.groovy"
+                    echo "copying all necessary files to ansible control node"
+                    sshagent(['ansible-server-key']) {
+                        sh "scp -o StrictHostKeyChecking=no ansible/* root@${ANSIBLE_SERVER}:/root"
+
+                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-server-key', keyFileVariable: 'keyfile', usernameVariable: 'user')]) {
+                            sh 'scp $keyfile root@$ANSIBLE_SERVER:/root/ssh-key.pem'
+                        }
+                    }
                 }
             }
         }
-        stage("build jar") {
+        stage("execute ansible playbook") {
             steps {
                 script {
-                    echo "building jar"
-                    //gv.buildJar()
-                }
-            }
-        }
-        stage("build image") {
-            steps {
-                script {
-                    echo "building image"
-                    //gv.buildImage()
-                }
-            }
-        }
-        stage("deploy") {
-            steps {
-                script {
-                    echo "deploying"
-                    //gv.deployApp()
+                    echo "calling ansible playbook to configure ec2 instances"
+                    def remote = [:]
+                    remote.name = "ansible-server"
+                    remote.host = ANSIBLE_SERVER
+                    remote.allowAnyHosts = true
+
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ansible-server-key', keyFileVariable: 'keyfile', usernameVariable: 'user')]){
+                        remote.user = user
+                        remote.identityFile = keyfile
+                        sshScript remote: remote, script: "prepare-ansible-server.sh"
+                        sshCommand remote: remote, command: "ansible-playbook my-playbook.yaml"
+                    }
                 }
             }
         }
